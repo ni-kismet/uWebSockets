@@ -67,7 +67,13 @@ inline SOCKET dup(SOCKET socket) {
 #endif
 
 #include "Backend.h"
+
+#ifdef USE_SSL
 #include <openssl/ssl.h>
+#else
+#include "removessl.h"
+#endif
+
 #include <csignal>
 #include <vector>
 #include <string>

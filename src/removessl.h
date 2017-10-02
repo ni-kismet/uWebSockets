@@ -13,17 +13,19 @@
 #define SSL_read(...) 0
 #define SSL_pending(...) false
 #define SSL_want(...) 0
-#define SSL_new(...)
+#define SSL_new(...) NULL
 #define SSL_set_connect_state(...)
 #define SSL_set_tlsext_host_name(...)
 #define SSL_set_accept_state(...)
 #define SSL_CTX_free(...)
-#define SSL_CTX_new(...)
-#define SSL_CTX_use_PrivateKey_file(...)
+#define SSL_CTX_new(...) NULL
+#define SSL_CTX_use_PrivateKey_file(...) 0
 #define SSL_CTX_use_certificate_chain_file(...) 0
 #define SSL_CTX_set_default_passwd_cb(...)
 #define SSL_CTX_set_options(...)
 #define SSL_CTX_set_default_passwd_cb_userdata(...)
+#define SSL_CTX_up_ref(...)
+#define SSL_library_init(...)
 
 #define SSL_ERROR_WANT_READ 2
 #define SSL_ERROR_WANT_WRITE 3

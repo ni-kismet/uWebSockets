@@ -3,6 +3,11 @@
 #include "Extensions.h"
 #include <cstdio>
 
+#ifndef USE_SSL
+#include "sha1/sha1.h"
+#define SHA_DIGEST_LENGTH 20
+#endif
+
 #define MAX_HEADERS 100
 #define MAX_HEADER_BUFFER_SIZE 4096
 #define FORCE_SLOW_PATH false
@@ -220,8 +225,13 @@ void HttpSocket<isServer>::upgrade(const char *secKey, const char *extensions, s
 
         unsigned char shaInput[] = "XXXXXXXXXXXXXXXXXXXXXXXX258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         memcpy(shaInput, secKey, 24);
+
         unsigned char shaDigest[SHA_DIGEST_LENGTH];
+#ifdef USE_SSL
         SHA1(shaInput, sizeof(shaInput) - 1, shaDigest);
+#else
+        sha1::calc(shaInput, sizeof(shaInput) - 1, shaDigest);
+#endif
 
         char upgradeBuffer[1024];
         memcpy(upgradeBuffer, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ", 97);

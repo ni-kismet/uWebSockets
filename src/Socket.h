@@ -146,7 +146,9 @@ protected:
         Socket *socket = (Socket *) p;
 
         if (status < 0) {
-            STATE::onEnd((Socket *) p);
+            std::ostringstream Reason;
+            Reason << "A status of " << status << " was passed in to sslIoHandler where 0 was expected";
+            STATE::onEnd((Socket *) p, Reason.str());
             return;
         }
 
@@ -167,7 +169,8 @@ protected:
                         break;
                     }
                 } else if (sent <= 0) {
-                    switch (SSL_get_error(socket->ssl, sent)) {
+                    auto error = SSL_get_error(socket->ssl, sent);
+                    switch (error) {
                     case SSL_ERROR_WANT_READ:
                         break;
                     case SSL_ERROR_WANT_WRITE:
@@ -176,7 +179,9 @@ protected:
                         }
                         break;
                     default:
-                        STATE::onEnd((Socket *) p);
+			            std::ostringstream Reason;
+			            Reason << "SSL_write failed with an unhandled error: " << error;
+                        STATE::onEnd((Socket *) p, Reason.str());
                         return;
                     }
                     break;
@@ -198,7 +203,9 @@ protected:
                         }
                         break;
                     default:
-                        STATE::onEnd((Socket *) p);
+			            std::ostringstream Reason;
+			            Reason << "A status of " << status << " was passed in to ioHandler where 0 was expected";
+                        STATE::onEnd((Socket *) p, Reason.str());
                         return;
                     }
                     break;
@@ -220,7 +227,9 @@ protected:
         Context *netContext = nodeData->netContext;
 
         if (status < 0) {
-            STATE::onEnd((Socket *) p);
+            std::ostringstream Reason;
+            Reason << "A status of " << status << " was passed in to ioHandler where 0 was expected";
+            STATE::onEnd((Socket *) p, Reason.str());
             return;
         }
 
@@ -242,7 +251,9 @@ protected:
                         }
                     } else if (sent == SOCKET_ERROR) {
                         if (!netContext->wouldBlock()) {
-                            STATE::onEnd((Socket *) p);
+				            std::ostringstream Reason;
+				            Reason << "::send failed with a return value of " << sent;
+                            STATE::onEnd((Socket *) p, Reason.str());
                             return;
                         }
                         break;
@@ -261,7 +272,9 @@ protected:
             if (length > 0) {
                 STATE::onData((Socket *) p, nodeData->recvBuffer, length);
             } else if (length <= 0 || (length == SOCKET_ERROR && !netContext->wouldBlock())) {
-                STATE::onEnd((Socket *) p);
+	            std::ostringstream Reason;
+	            Reason << "recv failed with a return value of " << length;
+                STATE::onEnd((Socket *) p, Reason.str());
             }
         }
 

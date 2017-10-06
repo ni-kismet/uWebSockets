@@ -6,6 +6,7 @@
 #include "Extensions.h"
 #include <functional>
 #include <stack>
+#include <sstream>
 
 namespace uWS {
 
@@ -37,7 +38,7 @@ protected:
     std::function<void(HttpSocket<isServer> *, HttpRequest)> httpUpgradeHandler;
 
     using errorType = typename std::conditional<isServer, int, void *>::type;
-    std::function<void(errorType)> errorHandler;
+    std::function<void(errorType, uS::ErrorCodes, const std::string&)> errorHandler;
 
     unsigned int maxPayload;
     Hub *hub;
@@ -70,7 +71,7 @@ public:
     void onDisconnection(std::function<void(WebSocket<isServer> *, int code, char *message, size_t length)> handler);
     void onPing(std::function<void(WebSocket<isServer> *, char *, size_t)> handler);
     void onPong(std::function<void(WebSocket<isServer> *, char *, size_t)> handler);
-    void onError(std::function<void(errorType)> handler);
+    void onError(std::function<void(errorType, uS::ErrorCodes, const std::string&)> handler);
     void onHttpConnection(std::function<void(HttpSocket<isServer> *)> handler);
     void onHttpRequest(std::function<void(HttpResponse *, HttpRequest, char *data, size_t length, size_t remainingBytes)> handler);
     void onHttpData(std::function<void(HttpResponse *, char *data, size_t length, size_t remainingBytes)> handler);

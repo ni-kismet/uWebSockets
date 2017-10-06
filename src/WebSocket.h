@@ -28,7 +28,8 @@ protected:
     }
 
     static uS::Socket *onData(uS::Socket *s, char *data, size_t length);
-    static void onEnd(uS::Socket *s);
+    static void onEnd(uS::Socket *s, const std::string& p_Reason);
+	static void onTimeoutEnd(uS::Socket *s) { onEnd(s, "The connection timed out"); }
     using uS::Socket::closeSocket;
 
     static bool refusePayloadLength(uint64_t length, WebSocketState<isServer> *webSocketState) {

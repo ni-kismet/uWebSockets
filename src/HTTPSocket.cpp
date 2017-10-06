@@ -3,6 +3,11 @@
 #include "Extensions.h"
 #include <cstdio>
 
+#ifndef USE_SSL
+#include "sha1/sha1.h"
+#define SHA_DIGEST_LENGTH 20
+#endif
+
 #define MAX_HEADERS 100
 #define MAX_HEADER_BUFFER_SIZE 4096
 #define FORCE_SLOW_PATH false
@@ -73,7 +78,9 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
 
     if (FORCE_SLOW_PATH || httpSocket->httpBuffer.length()) {
         if (httpSocket->httpBuffer.length() + length > MAX_HEADER_BUFFER_SIZE) {
-            httpSocket->onEnd(httpSocket);
+            std::ostringstream Reason;
+            Reason << "The http buffer length of " << httpSocket->httpBuffer.length() <<  " + the new data length of " << length << " exceeded the maximum header buffer size of " << MAX_HEADER_BUFFER_SIZE;
+            httpSocket->onEnd(httpSocket, Reason.str());
             return httpSocket;
         }
 
@@ -122,7 +129,9 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
 
                             return webSocket;
                         } else {
-                            httpSocket->onEnd(httpSocket);
+                            std::ostringstream Reason;
+				            Reason << "The sec-websocket-key header entry value length of " << secKey.valueLength <<  " did not match the expected size of 24";
+                            httpSocket->onEnd(httpSocket, Reason.str());
                         }
                     }
                     return httpSocket;
@@ -151,7 +160,7 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
                             return httpSocket;
                         }
                     } else {
-                        httpSocket->onEnd(httpSocket);
+                        httpSocket->onEnd(httpSocket, "httpRequestHandler function was not set");
                         return httpSocket;
                     }
                 }
@@ -176,14 +185,18 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
 
                     return webSocket;
                 } else {
-                    httpSocket->onEnd(httpSocket);
+                    std::ostringstream Reason;
+		            Reason << "The 'upgrade' header element was missing from the request header";
+                    httpSocket->onEnd(httpSocket, Reason.str());
                 }
                 return httpSocket;
             }
         } else {
             if (!httpSocket->httpBuffer.length()) {
                 if (length > MAX_HEADER_BUFFER_SIZE) {
-                    httpSocket->onEnd(httpSocket);
+                    std::ostringstream Reason;
+		            Reason << "The new data length of " << length << " exceeded the maximum header buffer size of " << MAX_HEADER_BUFFER_SIZE;
+                    httpSocket->onEnd(httpSocket, Reason.str());
                 } else {
                     httpSocket->httpBuffer.append(lastCursor, end - lastCursor);
                 }
@@ -220,8 +233,13 @@ void HttpSocket<isServer>::upgrade(const char *secKey, const char *extensions, s
 
         unsigned char shaInput[] = "XXXXXXXXXXXXXXXXXXXXXXXX258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         memcpy(shaInput, secKey, 24);
+
         unsigned char shaDigest[SHA_DIGEST_LENGTH];
+#ifdef USE_SSL
         SHA1(shaInput, sizeof(shaInput) - 1, shaDigest);
+#else
+        sha1::calc(shaInput, sizeof(shaInput) - 1, shaDigest);
+#endif
 
         char upgradeBuffer[1024];
         memcpy(upgradeBuffer, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ", 97);
@@ -263,7 +281,7 @@ void HttpSocket<isServer>::upgrade(const char *secKey, const char *extensions, s
 }
 
 template <bool isServer>
-void HttpSocket<isServer>::onEnd(uS::Socket *s) {
+void HttpSocket<isServer>::onEnd(uS::Socket *s, const std::string& p_Reason) {
     HttpSocket<isServer> *httpSocket = (HttpSocket<isServer> *) s;
 
     if (!httpSocket->isShuttingDown()) {
@@ -300,7 +318,7 @@ void HttpSocket<isServer>::onEnd(uS::Socket *s) {
 
     if (!isServer) {
         httpSocket->cancelTimeout();
-        Group<CLIENT>::from(httpSocket)->errorHandler(httpSocket->httpUser);
+        Group<CLIENT>::from(httpSocket)->errorHandler(httpSocket->httpUser, uS::EC_HTTP_SOCKET_FORCE_CLOSED, p_Reason);
     }
 }
 

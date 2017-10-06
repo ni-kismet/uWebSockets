@@ -86,19 +86,22 @@ public:
     }
 
     template <uS::Socket *I(Socket *s), void C(Socket *p, bool error)>
-    Socket *connect(const char *hostname, int port, bool secure, NodeData *nodeData) {
+    Socket *connect(const char *hostname, int port, bool secure, NodeData *nodeData, const std::function<void(ErrorCodes, const std::string&)>& p_ErrorHandler) {
         Context *netContext = nodeData->netContext;
 
         addrinfo hints, *result;
         memset(&hints, 0, sizeof(addrinfo));
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
-        if (getaddrinfo(hostname, std::to_string(port).c_str(), &hints, &result) != 0) {
+        int errorCode = getaddrinfo(hostname, std::to_string(port).c_str(), &hints, &result);
+        if (errorCode != 0) {
+			p_ErrorHandler(uS::EC_ADDRESS_INFO_FAILED, gai_strerror(errorCode));
             return nullptr;
         }
 
         uv_os_sock_t fd = netContext->createSocket(result->ai_family, result->ai_socktype, result->ai_protocol);
         if (fd == INVALID_SOCKET) {
+			p_ErrorHandler(uS::EC_CREATE_SOCKET_FAILED, "Failed to create socket");
             freeaddrinfo(result);
             return nullptr;
         }

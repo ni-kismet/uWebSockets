@@ -4,10 +4,14 @@
 #ifndef NETWORKING_UWS_H
 #define NETWORKING_UWS_H
 
+#ifdef USE_SSL
 #include <openssl/opensslv.h>
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define SSL_CTX_up_ref(x) x->references++
 #define SSL_up_ref(x) x->references++
+#endif
+#else
+#include "removessl.h"
 #endif
 
 #ifndef __linux
@@ -67,15 +71,31 @@ inline SOCKET dup(SOCKET socket) {
 #endif
 
 #include "Backend.h"
+
+#ifdef USE_SSL
 #include <openssl/ssl.h>
+#else
+#include "removessl.h"
+#endif
+
 #include <csignal>
 #include <vector>
 #include <string>
 #include <mutex>
 #include <algorithm>
 #include <memory>
+#include <sstream>
 
 namespace uS {
+	enum ErrorCodes {
+		EC_NO_ERROR,
+		EC_INVALID_URL,
+		EC_CREATE_HTTP_SOCKET_FAILED,
+		EC_LISTEN_FAILED,
+		EC_ADDRESS_INFO_FAILED,
+		EC_CREATE_SOCKET_FAILED,
+		EC_HTTP_SOCKET_FORCE_CLOSED,
+	};
 
 // todo: mark sockets nonblocking in these functions
 // todo: probably merge this Context with the TLS::Context for same interface for SSL and non-SSL!

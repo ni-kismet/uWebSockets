@@ -119,7 +119,7 @@ struct WIN32_EXPORT HttpSocket : uS::Socket {
     HttpSocket(uS::Socket *socket) : uS::Socket(std::move(*socket)) {}
 
     void terminate() {
-        onEnd(this);
+        onEnd(this, "Terminate was called");
     }
 
     void upgrade(const char *secKey, const char *extensions,
@@ -131,7 +131,8 @@ private:
     friend struct HttpResponse;
     friend struct Hub;
     static uS::Socket *onData(uS::Socket *s, char *data, size_t length);
-    static void onEnd(uS::Socket *s);
+    static void onEnd(uS::Socket *s, const std::string& p_Reason);
+	static void onTimeoutEnd(uS::Socket *s) { onEnd(s, "The connection timed out"); }
 };
 
 struct HttpResponse {

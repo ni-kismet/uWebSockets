@@ -55,7 +55,7 @@ void Hub::onClientConnection(uS::Socket *s, bool error) {
     HttpSocket<CLIENT> *httpSocket = (HttpSocket<CLIENT> *) s;
 
     if (error) {
-        httpSocket->onEnd(httpSocket);
+        httpSocket->onEnd(httpSocket, "Some error happened before onClientConnection");
     } else {
         httpSocket->setState<HttpSocket<CLIENT>>();
         httpSocket->change(httpSocket->nodeData->loop, httpSocket, httpSocket->setPoll(UV_READABLE));
@@ -70,7 +70,9 @@ bool Hub::listen(const char *host, int port, uS::TLS::Context sslContext, int op
     }
 
     if (uS::Node::listen<onServerAccept>(host, port, sslContext, options, (uS::NodeData *) eh, nullptr)) {
-        eh->errorHandler(port);
+   		std::ostringstream ErrorStream;
+   		ErrorStream << "Failed to start listening on port: " << port;
+        eh->errorHandler(port, uS::EC_LISTEN_FAILED, ErrorStream.str());
         return false;
     }
     return true;
@@ -156,12 +158,17 @@ void Hub::connect(std::string uri, void *user, std::map<std::string, std::string
     std::string hostname, path;
 
     if (!parseURI(uri, secure, hostname, port, path)) {
-        eh->errorHandler(user);
+    	// invalid url
+		std::ostringstream ErrorStream;
+		ErrorStream << "Invalid url: " << uri;
+		eh->errorHandler(user, uS::EC_INVALID_URL, ErrorStream.str());
     } else {
-        HttpSocket<CLIENT> *httpSocket = (HttpSocket<CLIENT> *) uS::Node::connect<allocateHttpSocket, onClientConnection>(hostname.c_str(), port, secure, eh);
+        HttpSocket<CLIENT> *httpSocket = (HttpSocket<CLIENT> *) uS::Node::connect<allocateHttpSocket, onClientConnection>(hostname.c_str(), port, secure, eh, [&](uS::ErrorCodes p_Code, const std::string& p_ErrorString){
+    		eh->errorHandler(user, p_Code, p_ErrorString);
+        });
         if (httpSocket) {
             // startTimeout occupies the user
-            httpSocket->startTimeout<HttpSocket<CLIENT>::onEnd>(timeoutMs);
+            httpSocket->startTimeout<HttpSocket<CLIENT>::onTimeoutEnd>(timeoutMs);
             httpSocket->httpUser = user;
 
             std::string randomKey = "x3JJHMbDL1EzLkh9GBhXDw==";
@@ -182,7 +189,9 @@ void Hub::connect(std::string uri, void *user, std::map<std::string, std::string
 
             httpSocket->httpBuffer += "\r\n";
         } else {
-            eh->errorHandler(user);
+    		std::ostringstream ErrorStream;
+    		ErrorStream << "Failed to create http socket";
+            eh->errorHandler(user, uS::EC_CREATE_HTTP_SOCKET_FAILED, ErrorStream.str());
         }
     }
 }
